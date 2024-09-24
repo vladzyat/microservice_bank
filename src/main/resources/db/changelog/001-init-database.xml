@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+
+
+    <changeSet id="1" author="vladz">
+        <sql>
+            CREATE TABLE IF NOT EXISTS currency_exchange_rates (
+            unique_id SERIAL PRIMARY KEY,
+            currency_from VARCHAR(3) NOT NULL,
+            target_currency VARCHAR(3) NOT NULL,
+            exchange_rate DECIMAL(19, 6) NOT NULL,
+            rate_timestamp TIMESTAMP WITH TIME ZONE NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS monthly_transaction_limits (
+            unique_id SERIAL PRIMARY KEY,
+            account VARCHAR(10) NOT NULL,
+            limit_datetime TIMESTAMP WITH TIME ZONE NOT NULL,
+            expense_category VARCHAR(50),
+            limit_sum DECIMAL(19, 4) NOT NULL,
+            limit_currency_shortname VARCHAR(3)
+            );
+
+            CREATE TABLE IF NOT EXISTS transactions (
+            id SERIAL PRIMARY KEY,
+            sender_account_number VARCHAR(10) NOT NULL,
+            receiver_account_number VARCHAR(10) NOT NULL,
+            amount DECIMAL(19, 4) NOT NULL,
+            expense_category VARCHAR(255) NOT NULL,
+            transaction_date TIMESTAMP WITH TIME ZONE NOT NULL,
+            limit_exceeded BOOLEAN NOT NULL
+            );
+
+        </sql>
+
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,1 +1,42 @@
+version: '3.8'
+
 services:
+  # PostgreSQL Database Service
+  db:
+    image: postgres:15
+    container_name: microservice_db
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - my_network
+
+  # Spring Boot Application Service
+  app:
+    image: microservice_solva
+    container_name: microservice_solva
+    depends_on:
+      - db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/my_database
+      SPRING_DATASOURCE_USERNAME: my_user
+      SPRING_DATASOURCE_PASSWORD: my_password
+    ports:
+      - "8080:8080"
+    networks:
+      - my_network
+
+# Volumes to persist PostgreSQL data
+volumes:
+  postgres_data:
+
+# Network to connect the services
+networks:
+  my_network:
+    driver: bridge
+
