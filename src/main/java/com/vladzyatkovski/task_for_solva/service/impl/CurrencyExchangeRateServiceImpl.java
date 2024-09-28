@@ -6,13 +6,12 @@ import com.crazzyghost.alphavantage.Config;
 import com.crazzyghost.alphavantage.exchangerate.ExchangeRate;
 import com.crazzyghost.alphavantage.exchangerate.ExchangeRateResponse;
 import com.vladzyatkovski.task_for_solva.entity.CurrencyExchangeRate;
+import com.vladzyatkovski.task_for_solva.enumeration.Currency;
 import com.vladzyatkovski.task_for_solva.repository.CurrencyExchangeRateRepository;
 import com.vladzyatkovski.task_for_solva.service.CurrencyExchangeRateService;
 import jakarta.annotation.PostConstruct;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,19 +20,15 @@ import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 
 @Service
-@AllArgsConstructor
-@NoArgsConstructor
+@RequiredArgsConstructor
 @Data
 public class CurrencyExchangeRateServiceImpl implements CurrencyExchangeRateService {
 
-    private CurrencyExchangeRateRepository currencyExchangeRateRepository;
+    private final CurrencyExchangeRateRepository currencyExchangeRateRepository;
 
     @Value("${alphavantage.api.key}")
-    private String alphaVantageApiKey;
+    private final String alphaVantageApiKey;
 
-    public CurrencyExchangeRateServiceImpl(CurrencyExchangeRateRepository currencyExchangeRateRepository) {
-        this.currencyExchangeRateRepository = currencyExchangeRateRepository;
-    }
 
     @PostConstruct
     public void init() {
@@ -70,12 +65,13 @@ public class CurrencyExchangeRateServiceImpl implements CurrencyExchangeRateServ
         BigDecimal exchangeRate = BigDecimal.valueOf(response.getExchangeRate());
         ZonedDateTime timestamp = ZonedDateTime.now();
 
-        CurrencyExchangeRate existingExchangeRate = currencyExchangeRateRepository.findByCurrencyFrom(currency);
+        CurrencyExchangeRate existingExchangeRate = currencyExchangeRateRepository
+                .findByCurrencyFrom(Currency.valueOf(currency));
 
         if(existingExchangeRate == null){
             existingExchangeRate = new CurrencyExchangeRate();
-            existingExchangeRate.setCurrencyFrom(currency);
-            existingExchangeRate.setTargetCurrency(targetCurrency);
+            existingExchangeRate.setCurrencyFrom(Currency.valueOf(currency));
+            existingExchangeRate.setTargetCurrency(Currency.valueOf(targetCurrency));
         }
 
         existingExchangeRate.setExchangeRate(exchangeRate);

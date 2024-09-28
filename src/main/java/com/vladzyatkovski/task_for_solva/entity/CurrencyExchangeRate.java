@@ -1,5 +1,6 @@
 package com.vladzyatkovski.task_for_solva.entity;
 
+import com.vladzyatkovski.task_for_solva.enumeration.Currency;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -21,10 +22,12 @@ public class CurrencyExchangeRate {
     private Long uniqueId;
 
     @Column(name = "currency_from", length = 3, nullable = false)
-    private String currencyFrom;
+    @Enumerated(EnumType.STRING)
+    private Currency currencyFrom;
 
     @Column(name = "target_currency", length = 3, nullable = false)
-    private String targetCurrency;
+    @Enumerated(EnumType.STRING)
+    private Currency targetCurrency;
 
     @Column(name = "exchange_rate", precision = 19, scale = 6, nullable = false)
     private BigDecimal exchangeRate;

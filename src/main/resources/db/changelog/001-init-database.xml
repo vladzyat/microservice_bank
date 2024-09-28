@@ -21,8 +21,7 @@
             account VARCHAR(10) NOT NULL,
             limit_datetime TIMESTAMP WITH TIME ZONE NOT NULL,
             expense_category VARCHAR(50),
-            limit_sum DECIMAL(19, 4) NOT NULL,
-            limit_currency_shortname VARCHAR(3)
+            limit_sum DECIMAL(19, 4) NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS transactions (
@@ -32,7 +31,8 @@
             amount DECIMAL(19, 4) NOT NULL,
             expense_category VARCHAR(255) NOT NULL,
             transaction_date TIMESTAMP WITH TIME ZONE NOT NULL,
-            limit_exceeded BOOLEAN NOT NULL
+            limit_exceeded BOOLEAN NOT NULL,
+            currency VARCHAR(3) NOT NULL
             );
 
         </sql>

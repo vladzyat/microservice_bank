@@ -2,16 +2,16 @@ package com.vladzyatkovski.task_for_solva.entity;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
+
+import com.vladzyatkovski.task_for_solva.enumeration.ExpenseCategory;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.RequiredArgsConstructor;
 
 @Entity
 @Table(name = "monthly_transaction_limits")
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
+@RequiredArgsConstructor
 public class MonthlyTransactionLimit {
 
     @Id
@@ -26,12 +26,9 @@ public class MonthlyTransactionLimit {
     private ZonedDateTime limitDateTime;
 
     @Column(name = "expense_category", length = 50)
-    private String expenseCategory;
+    @Enumerated(EnumType.STRING)
+    private ExpenseCategory expenseCategory;
 
     @Column(name = "limit_sum", nullable = false, precision = 19, scale = 4)
     private BigDecimal limitSum;
-
-    @Column(name = "limit_currency_shortname", length = 3)
-    private String limitCurrencyShortname;
-
 }
