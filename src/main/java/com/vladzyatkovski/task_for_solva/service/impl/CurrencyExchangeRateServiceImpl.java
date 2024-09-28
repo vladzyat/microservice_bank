@@ -5,6 +5,7 @@ import com.crazzyghost.alphavantage.AlphaVantageException;
 import com.crazzyghost.alphavantage.Config;
 import com.crazzyghost.alphavantage.exchangerate.ExchangeRate;
 import com.crazzyghost.alphavantage.exchangerate.ExchangeRateResponse;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.vladzyatkovski.task_for_solva.entity.CurrencyExchangeRate;
 import com.vladzyatkovski.task_for_solva.enumeration.Currency;
 import com.vladzyatkovski.task_for_solva.repository.CurrencyExchangeRateRepository;
@@ -13,11 +14,14 @@ import jakarta.annotation.PostConstruct;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
+import java.util.Iterator;
 
 @Service
 @RequiredArgsConstructor
@@ -26,8 +30,11 @@ public class CurrencyExchangeRateServiceImpl implements CurrencyExchangeRateServ
 
     private final CurrencyExchangeRateRepository currencyExchangeRateRepository;
 
-    @Value("${alphavantage.api.key}")
-    private final String alphaVantageApiKey;
+    @Value("${exchangeratesapi.api.key}")
+    private String exchangeratesapi;
+
+    private final String EXCHANGE_RATES_URL = "https://api.exchangeratesapi.io/v1/latest?access_key="
+            + exchangeratesapi +  "&symbols=RUB,KZT";
 
 
     @PostConstruct
@@ -35,55 +42,45 @@ public class CurrencyExchangeRateServiceImpl implements CurrencyExchangeRateServ
         updateCurrencyRates();
     }
 
+    @Scheduled(cron = "0 0 * * * ?")
+    public void scheduleCurrencyRateUpdate() {
+        updateCurrencyRates();
+    }
+
     @Transactional
     @Override
     public void updateCurrencyRates() {
-        Config cfg = Config.builder()
-                .key(alphaVantageApiKey)
-                .timeOut(5000)
-                .build();
+        RestTemplate restTemplate = new RestTemplate();
 
-        AlphaVantage.api().init(cfg);
+        JsonNode latestRates = fetchRates(restTemplate, EXCHANGE_RATES_URL);
 
-        String baseCurrency = "USD";
-        String[] currencies = { "KZT", "RUB"};
-
-        for (String currency : currencies) {
-
-            AlphaVantage.api()
-                    .exchangeRate()
-                    .fromCurrency(currency)
-                    .toCurrency(baseCurrency)
-                    .onSuccess(response -> handleSuccess(response, baseCurrency, currency))
-                    .onFailure(error -> handleFailure(error, currency))
-                    .fetch();
+        if (latestRates != null && latestRates.has("rates")) {
+            JsonNode ratesNode = latestRates.get("rates");
+            saveRatesToDatabase(ratesNode);
         }
     }
 
-    private void handleSuccess(ExchangeRateResponse response, String targetCurrency, String currency) {
-
-        BigDecimal exchangeRate = BigDecimal.valueOf(response.getExchangeRate());
-        ZonedDateTime timestamp = ZonedDateTime.now();
-
-        CurrencyExchangeRate existingExchangeRate = currencyExchangeRateRepository
-                .findByCurrencyFrom(Currency.valueOf(currency));
-
-        if(existingExchangeRate == null){
-            existingExchangeRate = new CurrencyExchangeRate();
-            existingExchangeRate.setCurrencyFrom(Currency.valueOf(currency));
-            existingExchangeRate.setTargetCurrency(Currency.valueOf(targetCurrency));
+    private JsonNode fetchRates(RestTemplate restTemplate, String url) {
+        try {
+            return restTemplate.getForObject(url, JsonNode.class);
+        } catch (Exception e) {
+            return null;
         }
-
-        existingExchangeRate.setExchangeRate(exchangeRate);
-        existingExchangeRate.setRateTimestamp(timestamp);
-
-        currencyExchangeRateRepository.save(existingExchangeRate);
-
-        System.out.println("Successfully updated rate for " + currency + ": " + exchangeRate);
     }
 
+    private void saveRatesToDatabase(JsonNode ratesNode) {
+        Iterator<String> currencyCodes = ratesNode.fieldNames();
+        while (currencyCodes.hasNext()) {
+            String currencyCode = currencyCodes.next();
+            BigDecimal exchangeRate = ratesNode.get(currencyCode).decimalValue();
 
-    private void handleFailure(AlphaVantageException error, String currency) {
-        System.err.println("Failed to update rate for " + currency + ": " + error.getMessage());
+            CurrencyExchangeRate currencyExchangeRate = new CurrencyExchangeRate();
+            currencyExchangeRate.setCurrencyFrom(Currency.valueOf(currencyCode));
+            currencyExchangeRate.setTargetCurrency(Currency.USD);
+            currencyExchangeRate.setExchangeRate(exchangeRate);
+            currencyExchangeRate.setRateTimestamp(ZonedDateTime.now());
+
+            currencyExchangeRateRepository.save(currencyExchangeRate);
+        }
     }
 }
