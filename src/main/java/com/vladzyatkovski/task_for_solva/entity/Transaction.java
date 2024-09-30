@@ -45,5 +45,8 @@ public class Transaction {
     @Column(name = "currency", nullable = false)
     @Enumerated(EnumType.STRING)
     private Currency currency;
+
+    @Column(name = "amount_in_USD", nullable = false)
+    private BigDecimal amountInUSD;
 }
 

@@ -32,7 +32,8 @@
             expense_category VARCHAR(255) NOT NULL,
             transaction_date TIMESTAMP WITH TIME ZONE NOT NULL,
             limit_exceeded BOOLEAN NOT NULL,
-            currency VARCHAR(3) NOT NULL
+            currency VARCHAR(3) NOT NULL,
+            amount_in_USD DECIMAL(19, 4) NOT NULL
             );
 
         </sql>

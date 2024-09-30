@@ -26,15 +26,8 @@ public class TransactionController {
     @PostMapping("/process")
     public ResponseEntity<String> processTransaction(@Valid @RequestBody TransactionDTO transactionDTO) {
         try {
-            Transaction transaction = new Transaction();
-            transaction.setSenderAccountNumber(transactionDTO.getSenderAccountNumber());
-            transaction.setReceiverAccountNumber(transactionDTO.getReceiverAccountNumber());
-            transaction.setAmount(transactionDTO.getAmount());
-            transaction.setExpenseCategory(transactionDTO.getExpenseCategory());
-            transaction.setTransactionDate(transactionDTO.getTransactionDate());
-            transaction.setCurrency(transactionDTO.getCurrency());
 
-            transactionService.processTransaction(transaction);
+            transactionService.processTransaction(transactionDTO);
 
             return new ResponseEntity<>(HttpStatus.OK);
         } catch (Exception e) {

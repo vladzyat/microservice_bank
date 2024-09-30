@@ -1,11 +1,13 @@
 package com.vladzyatkovski.task_for_solva.service.impl;
 
+import com.vladzyatkovski.task_for_solva.dto.TransactionDTO;
 import com.vladzyatkovski.task_for_solva.entity.MonthlyTransactionLimit;
 import com.vladzyatkovski.task_for_solva.entity.Transaction;
 import com.vladzyatkovski.task_for_solva.enumeration.Currency;
 import com.vladzyatkovski.task_for_solva.repository.CurrencyExchangeRateRepository;
 import com.vladzyatkovski.task_for_solva.repository.MonthlyTransactionLimitsRepository;
 import com.vladzyatkovski.task_for_solva.repository.TransactionRepository;
+import com.vladzyatkovski.task_for_solva.service.CurrencyExchangeRateService;
 import com.vladzyatkovski.task_for_solva.service.TransactionService;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -23,46 +25,54 @@ public class TransactionServiceImpl implements TransactionService {
     private final TransactionRepository transactionRepository;
     private final CurrencyExchangeRateRepository currencyExchangeRateRepository;
     private final MonthlyTransactionLimitsRepository monthlyTransactionLimitsRepository;
+    private final CurrencyExchangeRateService currencyExchangeRateService;
 
 
     @Override
     @Transactional
-    public Transaction processTransaction(Transaction transaction) {
+    public Transaction processTransaction(TransactionDTO transactionDTO) {
+
+        Transaction transaction = new Transaction();
+        transaction.setTransactionDate(transactionDTO.getTransactionDate());
+        transaction.setSenderAccountNumber(transactionDTO.getSenderAccountNumber());
+        transaction.setReceiverAccountNumber(transactionDTO.getReceiverAccountNumber());
+        transaction.setAmount(transactionDTO.getAmount());
+        transaction.setCurrency(transactionDTO.getCurrency());
+        transaction.setExpenseCategory(transactionDTO.getExpenseCategory());
+
+        BigDecimal amountInUSD = currencyExchangeRateService.convertToUSD(transactionDTO.getAmount(),
+                transactionDTO.getCurrency());
+
+        transaction.setAmountInUSD(amountInUSD);
 
         BigDecimal monthlyTransactionLimit = monthlyTransactionLimitsRepository
                 .findMonthlyTransactionLimitByAccountAndCategory(transaction.getSenderAccountNumber(),
                         transaction.getExpenseCategory());
 
-        BigDecimal monthlySpent = transactionRepository
-                .sumByAccountAndMonthAndCategory(transaction.getSenderAccountNumber(),
+        BigDecimal monthlySpentInUSD = transactionRepository
+                .sumAmountInUSDByAccountAndMonthAndCategory(transaction.getSenderAccountNumber(),
                 transaction.getTransactionDate().getMonthValue(), transaction.getExpenseCategory());
 
-        if (monthlySpent == null) {
-            monthlySpent = BigDecimal.ZERO;
+        if (monthlySpentInUSD == null) {
+            monthlySpentInUSD = BigDecimal.ZERO;
         }
 
-        transaction.setLimitExceeded(getIsExceededLimit(transaction, monthlySpent,
+        transaction.setLimitExceeded(getIsExceededLimit(transaction, monthlySpentInUSD,
                 monthlyTransactionLimit));
 
         return transactionRepository.save(transaction);
     }
 
-    private boolean getIsExceededLimit(Transaction transaction, BigDecimal monthlySpent,
+
+    private boolean getIsExceededLimit(Transaction transaction, BigDecimal monthlySpentInUSD,
                                       BigDecimal monthlyTransactionLimit){
 
         if(monthlyTransactionLimit == null){
             setDefaultMonthlyLimit(transaction);
             monthlyTransactionLimit = new BigDecimal("1000.0");
         }
-        BigDecimal transactionAmountInUsd = null;
 
-        if(!transaction.getCurrency().equals(Currency.USD)){
-            BigDecimal exchangeRate = currencyExchangeRateRepository
-                    .findRateByCurrencyFrom(transaction.getCurrency());
-            monthlySpent = monthlySpent.multiply(exchangeRate);
-        }
-
-        return monthlySpent.add(transaction.getAmount()).compareTo(monthlyTransactionLimit) > 0;
+        return monthlySpentInUSD.add(transaction.getAmount()).compareTo(monthlyTransactionLimit) > 0;
     }
 
     @Transactional

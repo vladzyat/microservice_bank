@@ -15,9 +15,9 @@ import java.util.Set;
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
 
-    @Query("SELECT SUM(t.amount) FROM Transaction t WHERE t.senderAccountNumber = :senderAccountNumber " +
+    @Query("SELECT SUM(t.amountInUSD) FROM Transaction t WHERE t.senderAccountNumber = :senderAccountNumber " +
             "AND EXTRACT(MONTH FROM t.transactionDate) = :month AND t.expenseCategory = :expenseCategory")
-    BigDecimal sumByAccountAndMonthAndCategory(@Param("senderAccountNumber") String senderAccountNumber,
+    BigDecimal sumAmountInUSDByAccountAndMonthAndCategory(@Param("senderAccountNumber") String senderAccountNumber,
                                     @Param("month") int month,
                                     @Param("expenseCategory") ExpenseCategory expenseCategory);
 

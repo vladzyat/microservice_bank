@@ -5,6 +5,7 @@ import com.vladzyatkovski.task_for_solva.entity.MonthlyTransactionLimit;
 import com.vladzyatkovski.task_for_solva.dto.MonthlyTransactionLimitDTO;
 import com.vladzyatkovski.task_for_solva.service.MonthlyTransactionLimitService;
 import com.vladzyatkovski.task_for_solva.service.TransactionWithExceededLimitService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +24,7 @@ public class MonthlyTransactionLimitController {
 
     @PostMapping("/set")
     public ResponseEntity<MonthlyTransactionLimit> setTransactionLimit(
-            @RequestBody MonthlyTransactionLimitDTO limitDTO) {
+            @Valid @RequestBody MonthlyTransactionLimitDTO limitDTO) {
 
         MonthlyTransactionLimit limit = monthlyTransactionLimitService.setLimit(limitDTO);
 

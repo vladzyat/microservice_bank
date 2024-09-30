@@ -33,8 +33,7 @@ public class CurrencyExchangeRateServiceImpl implements CurrencyExchangeRateServ
     @Value("${exchangeratesapi.api.key}")
     private String exchangeratesapi;
 
-    private final String EXCHANGE_RATES_URL = "https://api.exchangeratesapi.io/v1/latest?access_key="
-            + exchangeratesapi +  "&symbols=RUB,KZT";
+    private static final String EXCHANGE_RATES_URL = "https://api.exchangeratesapi.io/v1/latest?access_key=";
 
 
     @PostConstruct
@@ -50,13 +49,17 @@ public class CurrencyExchangeRateServiceImpl implements CurrencyExchangeRateServ
     @Transactional
     @Override
     public void updateCurrencyRates() {
+
         RestTemplate restTemplate = new RestTemplate();
 
-        JsonNode latestRates = fetchRates(restTemplate, EXCHANGE_RATES_URL);
+        String url = EXCHANGE_RATES_URL + exchangeratesapi +  "&symbols=RUB,KZT";
+
+        JsonNode latestRates = fetchRates(restTemplate, url);
 
         if (latestRates != null && latestRates.has("rates")) {
             JsonNode ratesNode = latestRates.get("rates");
             saveRatesToDatabase(ratesNode);
+            System.out.println("Exchange Rates successfully updated");
         }
     }
 
@@ -64,6 +67,7 @@ public class CurrencyExchangeRateServiceImpl implements CurrencyExchangeRateServ
         try {
             return restTemplate.getForObject(url, JsonNode.class);
         } catch (Exception e) {
+            e.printStackTrace();
             return null;
         }
     }
@@ -82,5 +86,17 @@ public class CurrencyExchangeRateServiceImpl implements CurrencyExchangeRateServ
 
             currencyExchangeRateRepository.save(currencyExchangeRate);
         }
+    }
+
+    public BigDecimal convertToUSD(BigDecimal amount, Currency currencyFrom){
+
+        BigDecimal exchangeRate = currencyExchangeRateRepository
+                .findRateByCurrencyFrom(currencyFrom);
+
+        if(exchangeRate == null){
+            exchangeRate = BigDecimal.ZERO;
+        }
+
+        return amount.multiply(exchangeRate);
     }
 }
