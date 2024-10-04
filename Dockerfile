@@ -1,12 +1,15 @@
+# Use a base image with Java runtime
+FROM openjdk:17-jdk-alpine
 
-FROM maven:3.8.5-openjdk-17 AS build
+# Set the working directory inside the container
 WORKDIR /app
-COPY pom.xml .
-COPY src ./src
-RUN mvn clean package -DskipTests -X
 
-FROM openjdk:17-jdk-slim
-WORKDIR /app
-COPY --from=build /app/target/your-app-name.jar /app/app.jar
+# Copy the jar file from target folder to the container
+COPY target/task_for_solva-0.0.1-SNAPSHOT.jar app.jar
+
+# Expose the port your application will run on (default for Spring Boot is 8080)
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+
+# Command to run the jar file
+ENTRYPOINT ["java", "-jar", "app.jar"]
+

@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.Iterator;
 
@@ -33,11 +34,13 @@ public class CurrencyExchangeRateServiceImpl implements CurrencyExchangeRateServ
     @Value("${exchangeratesapi.api.key}")
     private String exchangeratesapi;
 
-    private static final String EXCHANGE_RATES_URL = "https://api.exchangeratesapi.io/v1/latest?access_key=";
+    private static final String EXCHANGE_RATES_URL = "https://api.twelvedata.com/time_series?apikey=";
+    private final String [] currencyPairs = {"RUB/USD"};
 
 
     @PostConstruct
     public void init() {
+        System.out.println("API Key: " + exchangeratesapi);
         updateCurrencyRates();
     }
 
@@ -51,15 +54,37 @@ public class CurrencyExchangeRateServiceImpl implements CurrencyExchangeRateServ
     public void updateCurrencyRates() {
 
         RestTemplate restTemplate = new RestTemplate();
+        String url = null;
+        System.out.println("Started updating");
 
-        String url = EXCHANGE_RATES_URL + exchangeratesapi +  "&symbols=RUB,KZT";
+        for(String pair : currencyPairs){
+            url = EXCHANGE_RATES_URL + exchangeratesapi + "&symbol=" + pair
+                    + "&interval=1day&outputsize=5";
 
-        JsonNode latestRates = fetchRates(restTemplate, url);
+            System.out.println("Next step fetching");
 
-        if (latestRates != null && latestRates.has("rates")) {
-            JsonNode ratesNode = latestRates.get("rates");
-            saveRatesToDatabase(ratesNode);
-            System.out.println("Exchange Rates successfully updated");
+            JsonNode rootNode = fetchRates(restTemplate, url);
+
+            System.out.println("fetching success");
+            System.out.println(rootNode);
+
+
+            if(rootNode != null && rootNode.get("meta").get("symbol").equals(pair)){
+                System.out.println("Started saving");
+
+                JsonNode valuesArray =  rootNode.get("values");
+                LocalDate targetDate = LocalDate.now();
+                BigDecimal closeValue = getCloseForDateOrPrevious(valuesArray, targetDate);
+                String currencyFrom = pair.substring(0, 3);
+                CurrencyExchangeRate currencyExchangeRate = new CurrencyExchangeRate();
+                currencyExchangeRate.setCurrencyFrom(Currency.valueOf(currencyFrom));
+                currencyExchangeRate.setTargetCurrency(Currency.USD);
+                currencyExchangeRate.setExchangeRate(closeValue);
+                currencyExchangeRate.setRateTimestamp(ZonedDateTime.now());
+
+                currencyExchangeRateRepository.save(currencyExchangeRate);
+
+            }
         }
     }
 
@@ -69,22 +94,6 @@ public class CurrencyExchangeRateServiceImpl implements CurrencyExchangeRateServ
         } catch (Exception e) {
             e.printStackTrace();
             return null;
-        }
-    }
-
-    private void saveRatesToDatabase(JsonNode ratesNode) {
-        Iterator<String> currencyCodes = ratesNode.fieldNames();
-        while (currencyCodes.hasNext()) {
-            String currencyCode = currencyCodes.next();
-            BigDecimal exchangeRate = ratesNode.get(currencyCode).decimalValue();
-
-            CurrencyExchangeRate currencyExchangeRate = new CurrencyExchangeRate();
-            currencyExchangeRate.setCurrencyFrom(Currency.valueOf(currencyCode));
-            currencyExchangeRate.setTargetCurrency(Currency.USD);
-            currencyExchangeRate.setExchangeRate(exchangeRate);
-            currencyExchangeRate.setRateTimestamp(ZonedDateTime.now());
-
-            currencyExchangeRateRepository.save(currencyExchangeRate);
         }
     }
 
@@ -98,5 +107,24 @@ public class CurrencyExchangeRateServiceImpl implements CurrencyExchangeRateServ
         }
 
         return amount.multiply(exchangeRate);
+    }
+
+    private static BigDecimal getCloseForDateOrPrevious(JsonNode valuesArray, LocalDate targetDate) {
+        Iterator<JsonNode> elements = valuesArray.elements();
+        BigDecimal closestCloseValue = null;
+        while (elements.hasNext()) {
+            JsonNode element = elements.next();
+            LocalDate dateInJson = LocalDate.parse(element.get("datetime").asText());
+
+            if (dateInJson.equals(targetDate)) {
+                return element.get("close").decimalValue();
+            }
+
+            if (dateInJson.isBefore(targetDate) && (closestCloseValue == null
+                    || dateInJson.isAfter(LocalDate.parse(element.get("datetime").asText())))) {
+                closestCloseValue = element.get("close").decimalValue();
+            }
+        }
+        return closestCloseValue;
     }
 }
