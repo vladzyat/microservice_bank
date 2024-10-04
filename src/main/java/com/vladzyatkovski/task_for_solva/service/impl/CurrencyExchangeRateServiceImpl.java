@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.Iterator;
@@ -66,23 +67,33 @@ public class CurrencyExchangeRateServiceImpl implements CurrencyExchangeRateServ
             JsonNode rootNode = fetchRates(restTemplate, url);
 
             System.out.println("fetching success");
-            System.out.println(rootNode);
 
-
-            if(rootNode != null && rootNode.get("meta").get("symbol").equals(pair)){
+            if(rootNode != null && rootNode.get("meta").get("symbol").asText().equals(pair)){
                 System.out.println("Started saving");
 
                 JsonNode valuesArray =  rootNode.get("values");
                 LocalDate targetDate = LocalDate.now();
                 BigDecimal closeValue = getCloseForDateOrPrevious(valuesArray, targetDate);
                 String currencyFrom = pair.substring(0, 3);
-                CurrencyExchangeRate currencyExchangeRate = new CurrencyExchangeRate();
-                currencyExchangeRate.setCurrencyFrom(Currency.valueOf(currencyFrom));
-                currencyExchangeRate.setTargetCurrency(Currency.USD);
-                currencyExchangeRate.setExchangeRate(closeValue);
-                currencyExchangeRate.setRateTimestamp(ZonedDateTime.now());
+                System.out.println(currencyFrom);
 
-                currencyExchangeRateRepository.save(currencyExchangeRate);
+                CurrencyExchangeRate existingRate = currencyExchangeRateRepository
+                        .findByCurrencyFrom(Currency.valueOf(currencyFrom));
+
+                if (existingRate != null) {
+                    existingRate.setExchangeRate(closeValue);
+                    existingRate.setRateTimestamp(ZonedDateTime.now());
+                    currencyExchangeRateRepository.save(existingRate);
+                    System.out.println("Currency exchange rate updated: " + existingRate);
+                } else {
+                    CurrencyExchangeRate newRate = new CurrencyExchangeRate();
+                    newRate.setCurrencyFrom(Currency.valueOf(currencyFrom));
+                    newRate.setTargetCurrency(Currency.USD);
+                    newRate.setExchangeRate(closeValue);
+                    newRate.setRateTimestamp(ZonedDateTime.now());
+                    currencyExchangeRateRepository.save(newRate);
+                    System.out.println("New currency exchange rate saved: " + newRate);
+                }
 
             }
         }
@@ -117,12 +128,12 @@ public class CurrencyExchangeRateServiceImpl implements CurrencyExchangeRateServ
             LocalDate dateInJson = LocalDate.parse(element.get("datetime").asText());
 
             if (dateInJson.equals(targetDate)) {
-                return element.get("close").decimalValue();
+                return BigDecimal.valueOf(element.get("close").asDouble());
             }
 
             if (dateInJson.isBefore(targetDate) && (closestCloseValue == null
                     || dateInJson.isAfter(LocalDate.parse(element.get("datetime").asText())))) {
-                closestCloseValue = element.get("close").decimalValue();
+                closestCloseValue = BigDecimal.valueOf(element.get("close").asDouble());
             }
         }
         return closestCloseValue;
